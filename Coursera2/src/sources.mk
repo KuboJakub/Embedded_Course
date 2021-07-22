@@ -9,6 +9,15 @@
 #
 #*****************************************************************************
 
-SRCS =	main.c \
-	my_file.c \
-	my_memory.c
+# Add your Source files to this variable
+SOURCES = memory.c \
+	  interrupts_msp432p401r_gcc.c \
+	  system_msp432p401r.c \
+	  startup_msp432p401r_gcc.c
+
+# Add your include paths to this variable
+INCLUDES = -I../include/CMSIS \
+	   -I../include/common \
+	   -I../include/msp432
+
+

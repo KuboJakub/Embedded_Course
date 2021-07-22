@@ -27,7 +27,7 @@ include sources.mk
 PLATFORM = 
 
 # Architectures Specific Flags
-LINKER_FILE = 
+LINKER_FILE = msp432p401r.lds 
 CPU = 
 ARCH = 
 SPECS = 
@@ -39,3 +39,6 @@ LDFLAGS =
 CFLAGS = 
 CPPFLAGs = 
 
+
+main.out: main.c
+	gcc -DHOST $(INCLUDES) main.c memory.c -o main.out

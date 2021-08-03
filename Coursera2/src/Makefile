@@ -10,35 +10,79 @@
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
-# <Put a Description Here>
+# Makefile for native and crosscompilation for MSP432 platform.
+# Automatic vars:
+# 		$@ - use the same name as is the name of the target
+# 		$< - first prerequsit
 #
 # Use: make [TARGET] [PLATFORM-OVERRIDES]
 #
 # Build Targets:
-#      <Put a description of the supported targets here>
+# 		<FILE>.i - generates preprocessed output of C-code
+# 		<FILE>.asm - generates assembly output of C-code
+# 		<FILE>.o - generates object files for C-code, no linking
+# 		compile-all - compiles all objects, DO NOT LINK them
+# 		build - compiles all objecst and link them into one executable
+# 		clean - removes all outputs from make target executions
 #
 # Platform Overrides:
-#      <Put a description of the supported Overrides here
+# 		PLATFORM - supported platforms for native and crosscompilation (HOST,MSP432)
 #
 #------------------------------------------------------------------------------
 include sources.mk
 
 # Platform Overrides
-PLATFORM = 
+PLATFORM = HOST
 
-# Architectures Specific Flags
-LINKER_FILE = msp432p401r.lds 
-CPU = 
-ARCH = 
-SPECS = 
+# Architectures Specific Flags (just for ARM)
+LINKER_FILE = msp432p401r.lds #linking file - describes physical mem layout
+CPU = -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
+ARCH = -march=armv7e-m -mthumb
+SPECS = --specs=nosys.specs
 
-# Compiler Flags and Defines
-CC = 
-LD = 
-LDFLAGS = 
-CFLAGS = 
-CPPFLAGs = 
+
+CFLAGS = -O0 -std=c99 -Wall -Werror -g
+ifeq ($(PLATFORM),HOST)
+    CC = gcc                           #native compiler
+    CPPFLAGs = 
+else
+    CC = arm-none-eabi-gcc             #cross-compiler
+    LDFLAGS = -Wl,-T $(LINKER_FILE)
+    CFLAGS += $(CPU) $(ARCH) $(SPEC)
+    CPPFLAGs =
+endif
+
+
+# pattern to create preprocessed file *.i for any *.c file
+%.i : %.c
+	$(CC) -E -D$(PLATFORM) $(CFLAGS) $(INCLUDES) $< -o $@
+
+
+# pattern to create assambly *.s/*.asm from object file by using 'objdump'
+%.asm : %.o
+	objdump -S $<
+
+# pattern to create object file *.o for any *.c file
+%.o : %.c
+        $(CC) -c -D$(PLATFORM) $< $(INCLUDES) $(CFLAGS) -o $@
+
+# Compiles all files to objects but does not link them
+OBJS = $(SOURCES:.c=.o)
+.PHONY:compile-all
+compile-all : $(OBJS)
+
+
+
+
+.PHONY:clean
+clean:
+	rm -f *.o *.asm *.i
+	
+
+
+
+
 
 
 main.out: main.c
-	gcc -DHOST $(INCLUDES) main.c memory.c -o main.out
+	gcc -D$(PLATFORM) $(INCLUDES) main.c memory.c -o main.out

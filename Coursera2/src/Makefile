@@ -35,54 +35,65 @@ include sources.mk
 PLATFORM = HOST
 
 # Architectures Specific Flags (just for ARM)
-LINKER_FILE = msp432p401r.lds #linking file - describes physical mem layout
+LINKER_FILE = ../msp432p401r.lds #linking file - describes physical mem layout
 CPU = -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ARCH = -march=armv7e-m -mthumb
 SPECS = --specs=nosys.specs
 
-
-CFLAGS = -O0 -std=c99 -Wall -Werror -g
+# Compilation flags depending from choosen platform
+CFLAGS = -O0 -std=c99 -Wall -g
 ifeq ($(PLATFORM),HOST)
     CC = gcc                           #native compiler
-    CPPFLAGs = 
 else
     CC = arm-none-eabi-gcc             #cross-compiler
-    LDFLAGS = -Wl,-T $(LINKER_FILE)
-    CFLAGS += $(CPU) $(ARCH) $(SPEC)
-    CPPFLAGs =
+    LDFLAGS = -Wl,-T $(LINKER_FILE) -Wl,-Map=Linking_map.map # use linker file + print linking map
+    CFLAGS += $(CPU) $(ARCH) $(SPECS)
 endif
 
 
-# pattern to create preprocessed file *.i for any *.c file
+# Pattern to create preprocessed file *.i for any *.c file
 %.i : %.c
 	$(CC) -E -D$(PLATFORM) $(CFLAGS) $(INCLUDES) $< -o $@
 
 
-# pattern to create assambly *.s/*.asm from object file by using 'objdump'
-%.asm : %.o
-	objdump -S $<
 
-# pattern to create object file *.o for any *.c file
+# Pattern to create assambly *.s/*.asm - ways:
+#                    from object file by using 'objdump' for HOST
+#                    from *.c code for MSP432 platform
+ifeq ($(PLATFORM),HOST)
+    DODIS = objdump -S main.o
+else
+    DODIS = $(CC) -S -D$(PLATFORM) $(CFLAGS) $(INCLUDES) $< -o $@
+endif
+%.asm : %.o main.out
+	$(DODIS)
+
+
+# Pattern to create object file *.o for any *.c file
 %.o : %.c
-        $(CC) -c -D$(PLATFORM) $< $(INCLUDES) $(CFLAGS) -o $@
+	$(CC) -c -D$(PLATFORM) $(INCLUDES) $(CFLAGS) $< -o $@
+
+
+# Creates executable for main program
+main.out : main.c $(OBJS)
+	$(CC) -D$(PLATFORM) $(CFLAGS) $(INCLUDES) $(SOURCES) main.c $(LDFLAGS) -o main.out
+
+
 
 # Compiles all files to objects but does not link them
-OBJS = $(SOURCES:.c=.o)
+OBJS = $(SOURCES:.c=.o)       # create names of new files
 .PHONY:compile-all
-compile-all : $(OBJS)
+compile-all : $(OBJS)         # thanks to dependency generate %.o files
+
+
+# Compiles and link final executable dependent on platform
+.PHONY:build
+build : main.out
 
 
 
-
+# Deletes all compiled files
 .PHONY:clean
 clean:
-	rm -f *.o *.asm *.i
+	rm -f *.o *.asm *.i *.out *.map
 	
-
-
-
-
-
-
-main.out: main.c
-	gcc -D$(PLATFORM) $(INCLUDES) main.c memory.c -o main.out
